@@ -1,0 +1,32 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: alert-webhook
+spec:
+  template:
+    metadata:
+      labels:
+        app: alert-webhook
+      name: alert-webhook
+    spec:
+      containers:
+      - image: aixeshunter/alertmanager_webhook:v1.0
+        name: alert-webhook
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - name: alerts
+          mountPath: /var/lib/alerts
+        livenessProbe:
+          httpGet:
+            path: /alerts_history
+            port: 5000
+            httpHeaders:
+            - name: Accept
+              value: application/json
+          initialDelaySeconds: 10
+          periodSeconds: 120
+      volumes:
+      - name: alerts
+        hostPath:
+          path: /var/lib/alerts/
