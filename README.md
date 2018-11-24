@@ -85,6 +85,21 @@ curl -g -i -X GET -H "Accept: application/json"  "http://alertmanager-webhook:50
 }
 ```
 
+### Troubleshooting
+
+#### alert uniqueness
+
+I found that `resolved` alerts will be sent repeatedly, so I used some return value to do hash.
+
+Like some alerts' info about `Node`, I used `alertname`， `instance`, `startsAt` this three value to do hash and achieve alert uniqueness.
+
+```python
+def hash_value(labels, starts):
+    hash_str = labels.get("alertname", '') + labels.get("instance", "") + starts
+
+    return hash(hash_str)
+```
+
 ### Version
 
 `v1.0`
