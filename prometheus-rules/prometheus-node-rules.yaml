@@ -1,0 +1,101 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: prometheus-node-rules
+  namespace: kube-system
+spec:
+  groups:
+  - name: node-cpu-usage
+    rules:
+    - alert: NodeCPUUsageOvercommit
+      annotations:
+        summary: 'Overcommited CPU Usage Percnet on Node {{ $labels.instance }} for Some Time (current value: {{ printf "%.2f" $value }}%)'
+        description: 'High Node CPU Usage'
+        message: ''
+      expr: |
+        instance:node_cpu_utilisation:avg1m * 100 > 75.00
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'node'
+  - name: node-cpu-load
+    rules:
+    - alert: NodeCPULoadOvercommit
+      annotations:
+        summary: 'Overcommited CPU Load Average on Node {{ $labels.instance }} for Some Time (current value: {{ printf "%.2f" $value }})'
+        description: 'High Node CPU Load Average'
+        message: ''
+      expr: |
+        instance:instance_load_1 > 24.00
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'node'
+  - name: node-memory-usage
+    rules:
+    - alert: NodeMemoryUsageOvercommit
+      annotations:
+        summary: 'Overcommited Memory Usage Percnet on Node {{ $labels.instance }} for Some Time (current value: {{ printf "%.2f" $value }}%)'
+        description: 'High Node Memory Usage'
+        message: ''
+      expr: |
+        instance:node_memory_utilisation:usage * 100 > 75.00
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'node'
+  - name: node-disk-usage
+    rules:
+    - alert: NodeDiskUsageOvercommit
+      annotations:
+        summary: 'Overcommited Disk Usage Percnet on Node {{ $labels.instance }}  for Some Time (current value: {{ printf "%.2f" $value }}%)'
+        description: 'High Node Disk Usage'
+        message: ''
+      expr: |
+        instance:node_disk_usage:sum * 100 > 80.00
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'node'
+  - name: node-iowait
+    rules:
+    - alert: NodeIOWaitOvercommit
+      annotations:
+        summary: 'Overcommited CPU IO Wait on Node {{ $labels.instance }} for Some Time (current value: {{ printf "%.2f" $value }}%)'
+        description: 'High Node CPU IO Wait'
+        message: ''
+      expr: |
+        instance:node_cpu_iowait:sum > 50.00
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'node'
+  - name: node-net-receive
+    rules:
+    - alert: NodeNetReceiveBytesOvercommit
+      annotations:
+        summary: 'Overcommited Net Receive Bytes on Node {{ $labels.instance }} for Some Time (current value: {{ printf "%.2f" $value }})'
+        description: 'High Node Network Receive'
+        message: ''
+      expr: |
+        instance:node_network_receive_bytes:rate / 1000 > 10000.00
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'node'
+  - name: node-net-transmit
+    rules:
+    - alert: NodeNetTransmitBytesOvercommit
+      annotations:
+        summary: 'Overcommited Net Transmit Bytes on Node {{ $labels.instance }} for Some Time (current value: {{ printf "%.2f" $value }})'
+        description: 'High Node Network Transmit'
+        message: ''
+      expr: |
+        instance:node_network_transmit_bytes:rate / 1000 > 10000.00
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'node'

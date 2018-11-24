@@ -1,0 +1,667 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: prometheus-k8s-rules
+  namespace: kube-system
+spec:
+  groups:
+  - name: k8s.rules
+    rules:
+    - expr: |
+        sum(rate(container_cpu_usage_seconds_total{job="kubelet", image!=""}[5m])) by (namespace)
+      record: namespace:container_cpu_usage_seconds_total:sum_rate
+    - expr: |
+        sum(container_memory_usage_bytes{job="kubelet", image!=""}) by (namespace)
+      record: namespace:container_memory_usage_bytes:sum
+    - expr: |
+        sum by (namespace, label_name) (
+           sum(rate(container_cpu_usage_seconds_total{job="kubelet", image!=""}[5m])) by (namespace, pod_name)
+         * on (namespace, pod_name) group_left(label_name)
+           label_replace(kube_pod_labels{job="kube-state-metrics"}, "pod_name", "$1", "pod", "(.*)")
+        )
+      record: namespace_name:container_cpu_usage_seconds_total:sum_rate
+    - expr: |
+        sum by (namespace, label_name) (
+          sum(container_memory_usage_bytes{job="kubelet",image!=""}) by (pod_name, namespace)
+        * on (namespace, pod_name) group_left(label_name)
+          label_replace(kube_pod_labels{job="kube-state-metrics"}, "pod_name", "$1", "pod", "(.*)")
+        )
+      record: namespace_name:container_memory_usage_bytes:sum
+    - expr: |
+        sum by (namespace, label_name) (
+          sum(kube_pod_container_resource_requests_memory_bytes{job="kube-state-metrics"}) by (namespace, pod)
+        * on (namespace, pod) group_left(label_name)
+          label_replace(kube_pod_labels{job="kube-state-metrics"}, "pod_name", "$1", "pod", "(.*)")
+        )
+      record: namespace_name:kube_pod_container_resource_requests_memory_bytes:sum
+    - expr: |
+        sum by (namespace, label_name) (
+          sum(kube_pod_container_resource_requests_cpu_cores{job="kube-state-metrics"} and on(pod) kube_pod_status_scheduled{condition="true"}) by (namespace, pod)
+        * on (namespace, pod) group_left(label_name)
+          label_replace(kube_pod_labels{job="kube-state-metrics"}, "pod_name", "$1", "pod", "(.*)")
+        )
+      record: namespace_name:kube_pod_container_resource_requests_cpu_cores:sum
+  - name: kube-scheduler.rules
+    rules:
+    - expr: |
+        histogram_quantile(0.99, sum(rate(scheduler_e2e_scheduling_latency_microseconds_bucket{job="kube-scheduler"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.99"
+      record: cluster_quantile:scheduler_e2e_scheduling_latency:histogram_quantile
+    - expr: |
+        histogram_quantile(0.99, sum(rate(scheduler_scheduling_algorithm_latency_microseconds_bucket{job="kube-scheduler"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.99"
+      record: cluster_quantile:scheduler_scheduling_algorithm_latency:histogram_quantile
+    - expr: |
+        histogram_quantile(0.99, sum(rate(scheduler_binding_latency_microseconds_bucket{job="kube-scheduler"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.99"
+      record: cluster_quantile:scheduler_binding_latency:histogram_quantile
+    - expr: |
+        histogram_quantile(0.9, sum(rate(scheduler_e2e_scheduling_latency_microseconds_bucket{job="kube-scheduler"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.9"
+      record: cluster_quantile:scheduler_e2e_scheduling_latency:histogram_quantile
+    - expr: |
+        histogram_quantile(0.9, sum(rate(scheduler_scheduling_algorithm_latency_microseconds_bucket{job="kube-scheduler"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.9"
+      record: cluster_quantile:scheduler_scheduling_algorithm_latency:histogram_quantile
+    - expr: |
+        histogram_quantile(0.9, sum(rate(scheduler_binding_latency_microseconds_bucket{job="kube-scheduler"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.9"
+      record: cluster_quantile:scheduler_binding_latency:histogram_quantile
+    - expr: |
+        histogram_quantile(0.5, sum(rate(scheduler_e2e_scheduling_latency_microseconds_bucket{job="kube-scheduler"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.5"
+      record: cluster_quantile:scheduler_e2e_scheduling_latency:histogram_quantile
+    - expr: |
+        histogram_quantile(0.5, sum(rate(scheduler_scheduling_algorithm_latency_microseconds_bucket{job="kube-scheduler"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.5"
+      record: cluster_quantile:scheduler_scheduling_algorithm_latency:histogram_quantile
+    - expr: |
+        histogram_quantile(0.5, sum(rate(scheduler_binding_latency_microseconds_bucket{job="kube-scheduler"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.5"
+      record: cluster_quantile:scheduler_binding_latency:histogram_quantile
+  - name: kube-apiserver.rules
+    rules:
+    - expr: |
+        histogram_quantile(0.99, sum(rate(apiserver_request_latencies_bucket{job="apiserver"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.99"
+      record: cluster_quantile:apiserver_request_latencies:histogram_quantile
+    - expr: |
+        histogram_quantile(0.9, sum(rate(apiserver_request_latencies_bucket{job="apiserver"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.9"
+      record: cluster_quantile:apiserver_request_latencies:histogram_quantile
+    - expr: |
+        histogram_quantile(0.5, sum(rate(apiserver_request_latencies_bucket{job="apiserver"}[5m])) without(instance, pod)) / 1e+06
+      labels:
+        quantile: "0.5"
+      record: cluster_quantile:apiserver_request_latencies:histogram_quantile
+  - name: node.rules
+    rules:
+    - expr: sum(min(kube_pod_info) by (node))
+      record: ':kube_pod_info_node_count:'
+    - expr: |
+        max(label_replace(kube_pod_info{job="kube-state-metrics"}, "pod", "$1", "pod", "(.*)")) by (node, namespace, pod)
+      record: 'node_namespace_pod:kube_pod_info:'
+    - expr: |
+        count by (node) (sum by (node, cpu) (
+          node_cpu_seconds_total{job="node-exporter"}
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:
+        ))
+      record: node:node_num_cpu:sum
+    - expr: |
+        count by (instance) (sum by (instance, cpu) (
+          node_cpu_seconds_total{job="node-exporter"}
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:
+        ))
+      record: instance:node_num_cpu:sum
+    - expr: |
+        sum by (instance) (
+          node_load1{job="node-exporter"}
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:
+        )
+        /
+        instance:node_num_cpu:sum
+      record: instance:node_cpu_saturation_load1
+    - expr: |
+        1 - avg(rate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[1m]))
+      record: :node_cpu_utilisation:avg1m
+    - expr: |
+        1 - avg by (node) (
+          rate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[1m])
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:)
+      record: node:node_cpu_utilisation:avg1m
+    - expr: |
+        1 - avg by (instance) (
+          rate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[1m])
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:)
+      record: instance:node_cpu_utilisation:avg1m
+    - expr: |
+        sum(instance:node_cpu_utilisation:avg1m * instance:node_num_cpu:sum)
+      record: cluster:node_cpu_core:avg1m
+    - expr: |
+        sum(node_load1{job="node-exporter"})
+        /
+        sum(node:node_num_cpu:sum)
+      record: ':node_cpu_saturation_load1:'
+    - expr: |
+        sum by (instance, namespace, service) (node_load1)
+      record: 'instance:instance_load_1'
+    - expr: |
+        sum by (node) (
+          node_load1{job="node-exporter"}
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:
+        )
+        /
+        node:node_num_cpu:sum
+      record: 'node:node_cpu_saturation_load1:'
+    - expr: |
+        1 -
+        sum(node_memory_MemFree_bytes{job="node-exporter"} + node_memory_Cached_bytes{job="node-exporter"} + node_memory_Buffers_bytes{job="node-exporter"})
+        /
+        sum(node_memory_MemTotal_bytes{job="node-exporter"})
+      record: ':node_memory_utilisation:'
+    - expr: |
+        sum by (node) (
+          (node_memory_MemFree_bytes{job="node-exporter"} + node_memory_Cached_bytes{job="node-exporter"} + node_memory_Buffers_bytes{job="node-exporter"})
+          * on (namespace, pod) group_left(node)
+            node_namespace_pod:kube_pod_info:
+        )
+      record: node:node_memory_bytes_available:sum
+    - expr: |
+        sum by (instance) (
+          (node_memory_MemFree_bytes{job="node-exporter"} + node_memory_Cached_bytes{job="node-exporter"} + node_memory_Buffers_bytes{job="node-exporter"})
+          * on (namespace, pod) group_left(node)
+            node_namespace_pod:kube_pod_info:
+        )
+      record: instance:node_memory_bytes_available:sum
+    - expr: |
+        sum(node:node_memory_bytes_total:sum - node:node_memory_bytes_available:sum)
+      record: cluster:node_memory_bytes_used:sum
+    - expr: |
+        sum by (node) (
+          node_memory_MemTotal_bytes{job="node-exporter"}
+          * on (namespace, pod) group_left(node)
+            node_namespace_pod:kube_pod_info:
+        )
+      record: node:node_memory_bytes_total:sum
+    - expr: |
+        sum by (instance) (
+          node_memory_MemTotal_bytes{job="node-exporter"}
+          * on (namespace, pod) group_left(node)
+            node_namespace_pod:kube_pod_info:
+        )
+      record: instance:node_memory_bytes_total:sum
+    - expr: |
+        (node:node_memory_bytes_total:sum - node:node_memory_bytes_available:sum)
+        /
+        scalar(sum(node:node_memory_bytes_total:sum))
+      record: node:node_memory_utilisation:ratio
+    - expr: |
+        1e3 * sum(
+          (rate(node_vmstat_pgpgin{job="node-exporter"}[1m])
+         + rate(node_vmstat_pgpgout{job="node-exporter"}[1m]))
+        )
+      record: :node_memory_swap_io_bytes:sum_rate
+    - expr: |
+        1 -
+        sum by (node) (
+          (node_memory_MemFree_bytes{job="node-exporter"} + node_memory_Cached_bytes{job="node-exporter"} + node_memory_Buffers_bytes{job="node-exporter"})
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:
+        )
+        /
+        sum by (node) (
+          node_memory_MemTotal_bytes{job="node-exporter"}
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:
+        )
+      record: 'node:node_memory_utilisation:'
+    - expr: |
+        1 - (node:node_memory_bytes_available:sum / node:node_memory_bytes_total:sum)
+      record: 'node:node_memory_utilisation_2:'
+    - expr: |
+        1 - (instance:node_memory_bytes_available:sum / instance:node_memory_bytes_total:sum)
+      record: 'instance:node_memory_utilisation:usage'
+    - expr: |
+        1e3 * sum by (node) (
+          (rate(node_vmstat_pgpgin{job="node-exporter"}[1m])
+         + rate(node_vmstat_pgpgout{job="node-exporter"}[1m]))
+         * on (namespace, pod) group_left(node)
+           node_namespace_pod:kube_pod_info:
+        )
+      record: node:node_memory_swap_io_bytes:sum_rate
+    - expr: |
+        avg(irate(node_disk_io_time_seconds_total{job="node-exporter",device=~"(sd|vd|nvme).+"}[1m]) / 1e3)
+      record: :node_disk_utilisation:avg_irate
+    - expr: |
+        avg by (node) (
+          irate(node_disk_io_time_seconds_total{job="node-exporter",device=~"(sd|vd|nvme).+"}[1m]) / 1e3
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:
+        )
+      record: node:node_disk_utilisation:avg_irate
+    - expr: |
+        avg(irate(node_disk_io_time_weighted_seconds_total{job="node-exporter",device=~"(sd|vd|nvme).+"}[1m]) / 1e3)
+      record: :node_disk_saturation:avg_irate
+    - expr: |
+        avg by (node) (
+          irate(node_disk_io_time_weighted_seconds_total{job="node-exporter",device=~"(sd|vd|nvme).+"}[1m]) / 1e3
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:
+        )
+      record: node:node_disk_saturation:avg_irate
+    - expr: |
+        sum(irate(node_network_receive_bytes_total{job="node-exporter",device="eth0"}[1m])) +
+        sum(irate(node_network_transmit_bytes_total{job="node-exporter",device="eth0"}[1m]))
+      record: :node_net_utilisation:sum_irate
+    - expr: |
+        sum by (node) (
+          (irate(node_network_receive_bytes_total{job="node-exporter",device="eth0"}[1m]) +
+          irate(node_network_transmit_bytes_total{job="node-exporter",device="eth0"}[1m]))
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:
+        )
+      record: node:node_net_utilisation:sum_irate
+    - expr: |
+        sum(irate(node_network_receive_drop_total{job="node-exporter",device="eth0"}[1m])) +
+        sum(irate(node_network_transmit_drop_total{job="node-exporter",device="eth0"}[1m]))
+      record: :node_net_saturation:sum_irate
+    - expr: |
+        sum by (node) (
+          (irate(node_network_receive_drop_total{job="node-exporter",device="eth0"}[1m]) +
+          irate(node_network_transmit_drop_total{job="node-exporter",device="eth0"}[1m]))
+        * on (namespace, pod) group_left(node)
+          node_namespace_pod:kube_pod_info:
+        )
+      record: node:node_net_saturation:sum_irate
+  - name: kube-prometheus-node-recording.rules
+    rules:
+    - expr: sum(rate(node_cpu_seconds_total{mode!="idle",mode!="iowait"}[3m])) BY (instance)
+      record: instance:node_cpu:rate:sum
+    - expr: sum((node_filesystem_size_bytes{mountpoint="/"} - node_filesystem_free_bytes{mountpoint="/"}))
+        BY (instance)
+      record: instance:node_filesystem_usage:sum
+    - expr: sum((node_filesystem_size_bytes{mountpoint="/"} - node_filesystem_free_bytes{mountpoint="/"}) / node_filesystem_size_bytes{mountpoint="/"})
+        BY (instance)
+      record: instance:node_disk_usage:sum
+    - expr: sum(nvidia_gpu_memory_used_mb / nvidia_gpu_memory_total_mb)
+        BY (instance, name, namespace, path, uuid)
+      record: instance:node_gpu_memory:usage
+    - expr: (avg by (instance) (rate(node_cpu_seconds_total{mode="iowait"}[1m])) * 100)
+      record: instance:node_cpu_iowait:sum
+    - expr: max(rate(node_network_receive_bytes_total{device!="lo"}[3m])) BY(instance)
+      record: instance:node_network_receive_bytes:rate
+    - expr: max(rate(node_network_transmit_bytes_total{device!="lo"}[3m])) BY(instance)
+      record: instance:node_network_transmit_bytes:rate
+    - expr: sum(rate(node_network_receive_bytes_total[3m])) BY (instance)
+      record: instance:node_network_receive_bytes_total:rate:sum
+    - expr: sum(rate(node_network_transmit_bytes_total[3m])) BY (instance)
+      record: instance:node_network_transmit_bytes:rate:sum
+    - expr: sum(rate(node_cpu_seconds_total{mode!="idle",mode!="iowait"}[5m])) WITHOUT (cpu, mode)
+        / ON(instance) GROUP_LEFT() count(sum(node_cpu) BY (instance, cpu)) BY (instance)
+      record: instance:node_cpu:ratio
+    - expr: sum(rate(node_cpu_seconds_total{mode!="idle",mode!="iowait"}[5m]))
+      record: cluster:node_cpu:sum_rate5m
+    - expr: cluster:node_cpu:rate5m / count(sum(node_cpu) BY (instance, cpu))
+      record: cluster:node_cpu:ratio
+  - name: kubernetes-absent
+    rules:
+    - alert: AlertmanagerDown
+      annotations:
+        summary: Alertmanager has disappeared from Prometheus target discovery.
+        message: ''
+      expr: |
+        absent(up{job="alertmanager-main"} == 1)
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeAPIDown
+      annotations:
+        summary: 'KubeAPI on Node {{ $labels.instance }} has disappeared from Prometheus target discovery.'
+        message: ''
+      expr: |
+        absent(up{job="apiserver"} == 1)
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeControllerManagerDown
+      annotations:
+        summary: 'KubeControllerManager on Cluster has disappeared from Prometheus target discovery.'
+        message: ''
+      expr: |
+        sum by (namespace, pod) (kube_pod_status_phase{pod=~"(kube-controller-manager).*", phase!~"Running|Succeeded"}) > 0
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeControllerManagerDown
+      annotations:
+        summary: 'KubeControllerManager on Cluster has disappeared from Prometheus target discovery.'
+        message: ''
+      expr: |
+        rate(kube_pod_container_status_restarts_total{pod=~"(kube-controller-manager).*"}[5m]) > 0
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeSchedulerDown
+      annotations:
+        summary: 'KubeScheduler on Cluster has disappeared from Prometheus target discovery.'
+        message: ''
+      expr: |
+        sum by (namespace, pod) (kube_pod_status_phase{pod=~"(kube-scheduler).*", phase!~"Running|Succeeded"}) > 0
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeSchedulerDown
+      annotations:
+        summary: 'KubeScheduler on Cluster has disappeared from Prometheus target discovery.'
+        message: ''
+      expr: |
+        rate(kube_pod_container_status_restarts_total{pod=~"(kube-scheduler).*"}[5m]) > 0
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeStateMetricsDown
+      annotations:
+        summary: 'KubeStateMetrics on Node {{ $labels.instance }} has disappeared from Prometheus target discovery.'
+        message: ''
+      expr: |
+        absent(up{job="kube-state-metrics"} == 1)
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeletDown
+      annotations:
+        summary: 'Kubelet on Node {{ $labels.instance }} has disappeared from Prometheus target discovery.'
+        message: ''
+      expr: |
+        absent(up{job="kubelet"} == 1)
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: NodeExporterDown
+      annotations:
+        summary: 'NodeExporter on Node {{ $labels.instance }} has disappeared from Prometheus target discovery.'
+        message: ''
+      expr: |
+        absent(up{job="node-exporter"} == 1)
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: PrometheusDown
+      annotations:
+        summary: 'Prometheus on Node {{ $labels.instance }} has disappeared from Prometheus target discovery.'
+        message: ''
+      expr: |
+        absent(up{job="prometheus-k8s"} == 1)
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: PrometheusOperatorDown
+      annotations:
+        summary: 'PrometheusOperator on Node {{ $labels.instance }} has disappeared from Prometheus target discovery.'
+        message: ''
+      expr: |
+        absent(up{job="prometheus-operator"} == 1)
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'service'
+  - name: kubernetes-apps
+    rules:
+    - alert: KubePodCrashLooping
+      annotations:
+        summary: '{{ $labels.namespace }}/{{ $labels.pod }} ({{ $labels.container
+          }}) is restarting {{ printf "%.2f" $value }} / second'
+        message: ''
+      expr: |
+        rate(kube_pod_container_status_restarts_total{job="kube-state-metrics"}[15m]) > 0
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubePodNotReady
+      annotations:
+        summary: '{{ $labels.namespace }}/{{ $labels.pod }} is not ready.'
+        message: ''
+      expr: |
+        sum by (namespace, pod) (kube_pod_status_phase{job="kube-state-metrics", phase!~"Running|Succeeded"}) > 0
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeDeploymentGenerationMismatch
+      annotations:
+        summary: Deployment {{ $labels.namespace }}/{{ $labels.deployment }} generation
+          mismatch
+        message: ''
+      expr: |
+        kube_deployment_status_observed_generation{job="kube-state-metrics"}
+          !=
+        kube_deployment_metadata_generation{job="kube-state-metrics"}
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeDeploymentReplicasMismatch
+      annotations:
+        summary: Deployment {{ $labels.namespace }}/{{ $labels.deployment }} replica
+          mismatch
+        message: ''
+      expr: |
+        kube_deployment_spec_replicas{job="kube-state-metrics"}
+          !=
+        kube_deployment_status_replicas_available{job="kube-state-metrics"}
+      for: 20m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeStatefulSetReplicasMismatch
+      annotations:
+        summary: StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} replica
+          mismatch
+        message: ''
+      expr: |
+        kube_statefulset_status_replicas_ready{job="kube-state-metrics"}
+          !=
+        kube_statefulset_status_replicas{job="kube-state-metrics"}
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeDaemonSetRolloutStuck
+      annotations:
+        summary: Only {{$value}}% of desired pods scheduled and ready for daemon set
+          {{$labels.namespace}}/{{$labels.daemonset}}
+        message: ''
+      expr: |
+        kube_daemonset_status_number_ready{job="kube-state-metrics"}
+          /
+        kube_daemonset_status_desired_number_scheduled{job="kube-state-metrics"} * 100 < 100
+      for: 15m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeDaemonSetNotScheduled
+      annotations:
+        summary: A number of pods of daemonset {{$labels.namespace}}/{{$labels.daemonset}}
+          are not scheduled.
+        message: ''
+      expr: |
+        kube_daemonset_status_desired_number_scheduled{job="kube-state-metrics"}
+          -
+        kube_daemonset_status_current_number_scheduled{job="kube-state-metrics"} > 0
+      for: 10m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeDaemonSetMisScheduled
+      annotations:
+        summary: A number of pods of daemonset {{$labels.namespace}}/{{$labels.daemonset}}
+          are running where they are not supposed to run.
+        message: ''
+      expr: |
+        kube_daemonset_status_number_misscheduled{job="kube-state-metrics"} > 0
+      for: 10m
+      labels:
+        severity: critical
+        resource_type: 'service'
+  - name: kubernetes-resources
+    rules:
+    - alert: KubeCPUOvercommit
+      annotations:
+        message: 'Overcommited CPU resource requests on Pods, cannot tolerate node failure.'
+        message: ''
+      expr: |
+        sum(namespace_name:kube_pod_container_resource_requests_cpu_cores:sum)
+          /
+        sum(node:node_num_cpu:sum)
+          > 0.9
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeMemOvercommit
+      annotations:
+        summary: 'Overcommited Memory resource requests on Pods, cannot tolerate node failure.'
+        message: ''
+      expr: |
+        sum(namespace_name:kube_pod_container_resource_requests_memory_bytes:sum)
+          /
+        sum(node_memory_MemTotal_bytes)
+          > 0.9
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: KubeMemOvercommit
+      annotations:
+        summary: Overcommited Memory resource request quota on Namespaces.
+        message: ''
+      expr: |
+        sum(kube_resourcequota{job="kube-state-metrics", type="hard", resource="requests.memory"})
+          /
+        sum(node_memory_MemTotal_bytes{job="node-exporter"})
+          > 1.5
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+  - name: kubernetes-system
+    rules:
+    - alert: KubeNodeNotReady
+      annotations:
+        summary: '{{ $labels.node }} has been unready for more than an hour'
+        message: ''
+      expr: |
+        kube_node_status_condition{job="kube-state-metrics",condition="Ready",status="true"} == 0
+      for: 1h
+      labels:
+        severity: critical
+        resource_type: 'service'
+  - name: kube-prometheus-node-alerting.rules
+    rules:
+    - alert: NodeDiskRunningFullAfterTwentyFourHours
+      annotations:
+        description: device {{$labels.device}} on node {{$labels.instance}} is running
+          full within the next 24 hours (mounted at {{$labels.mountpoint}})
+        summary: Node disk is running full within 24 hours
+        message: ''
+      expr: |
+        predict_linear(node_filesystem_free_bytes{job="node-exporter",mountpoint!~"^/etc/(?:resolv.conf|hosts|hostname)$"}[6h], 3600 * 24) < 0 and on(instance) up{job="node-exporter"}
+      for: 30m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: NodeDiskRunningFullAfterTwoHours
+      annotations:
+        description: device {{$labels.device}} on node {{$labels.instance}} is running
+          full within the next 2 hours (mounted at {{$labels.mountpoint}})
+        summary: Node disk is running full within 2 hours
+        message: ''
+      expr: |
+        predict_linear(node_filesystem_free_bytes{job="node-exporter",mountpoint!~"^/etc/(?:resolv.conf|hosts|hostname)$"}[30m], 3600 * 2) < 0 and on(instance) up{job="node-exporter"}
+      for: 10m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: GlusterFSystemdDown
+      annotations:
+        summary: 'GlusterFS in Kubernetes Cluster is down!'
+        message: ''
+      expr: |
+        absent(node_systemd_unit_state{name="glusterd.service", state="active"} == 1)
+      for: 10m
+      labels:
+        severity: critical
+        resource_type: 'service'
+  - name: kubernetes-externel-storage-cluster
+    rules:
+    - alert: CephDown
+      annotations:
+        summary: 'Ceph in Kubernetes Cluster is down!'
+        message: ''
+      expr: |
+        ceph_health_status{} != 1
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: NFSDown
+      annotations:
+        summary: 'NFS in Kubernetes Cluster is down!'
+        message: ''
+      expr: |
+        sum by (namespace, pod) (kube_pod_status_phase{pod=~"(nfs-client-provisioner).*", phase!~"Running|Succeeded"}) > 0
+      for: 10m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: NFSServerDown
+      annotations:
+        summary: 'NFS in Kubernetes Cluster is down!'
+        message: ''
+      expr: |
+        sum by (instance, mount_path, nfs_address) (nfs_up) < 1
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
+    - alert: NFSServerDown
+      annotations:
+        summary: 'NFS in Kubernetes Cluster is down!'
+        message: ''
+      expr: |
+        rate(kube_pod_container_status_restarts_total{pod=~"(nfs-client-provisioner).*"}[10m]) > 0
+      for: 5m
+      labels:
+        severity: critical
+        resource_type: 'service'
