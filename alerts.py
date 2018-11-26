@@ -62,18 +62,22 @@ def query_hash_id(hash_id):
     return data
 
 
-def query_alerts(page, per_page, start, end):
+def query_alerts(page, per_page, start, end, severity):
     try:
-        alert = Alerts.query.order_by(Alerts.start.desc())
+        alert = Alerts.query
+
         if start:
             start = datetime.utcfromtimestamp(float(start))
             alert = alert.filter(Alerts.start > start)
 
         if end:
             end = datetime.utcfromtimestamp(float(end))
-            alert = alert.filter(Alerts.end < end)
+            alert = alert.filter(Alerts.start < end)
 
-        a = alert.paginate(page, per_page, error_out=False)
+        if severity:
+            alert = alert.filter_by(severity=severity)
+
+        a = alert.order_by(Alerts.start.desc()).paginate(page, per_page, error_out=False)
         alerts = [i.serialize for i in a.items]
     except Exception as e:
         raise e
