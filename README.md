@@ -31,16 +31,6 @@ receivers
     send_resolved: true
 ```
 
-
-### ENV
-
-| Name          | type     | default |
-| ------------  | -------- | ------------|
-| PORT          | int      | 5000 |
-| DB_PATH       | str      | '/var/lib/alerts/alert.db' |
-| HOST          | str      | '0.0.0.0' |
-
-
 #### alerts_history ['GET']
 
 ##### parameters
@@ -85,11 +75,34 @@ curl -g -i -X GET -H "Accept: application/json"  "http://alertmanager-webhook:50
 }
 ```
 
+### ENV
+
+| Name          | type     | default |
+| ------------  | -------- | ------------|
+| PORT          | int      | 5000 |
+| DB_PATH       | str      | '/var/lib/alerts/alert.db' |
+| HOST          | str      | '0.0.0.0' |
+
+
+### table `alerts`
+
+| Name          | type     | default |
+| ------------  | -------- | ------------|
+| id            | int      | autoincrement |
+| alertname     | str      | \ |
+| resource      | str      | \ |
+| message      | text      | \ |
+| hash_id      | str      | \ |
+| severity      | str      | \ |
+| start      | datetime      | datetime.datetime|
+| end      | datetime      | datetime.datetime |
+
+
 ### Troubleshooting
 
 #### alert uniqueness
 
-I found that `resolved` alerts will be sent repeatedly, so I used some return value to do hash.
+I found that `resolved` alerts will be sent repeatedly, so I used some return `values` to do hash.
 
 Like some alerts' info about `Node`, I used `alertname`， `instance`, `startsAt` this three value to do hash and achieve alert uniqueness.
 
