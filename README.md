@@ -37,7 +37,7 @@ receivers
 | per_page      | int      | 20 |
 | start         | str      | \ |
 | end           | str      | \ |
-
+| severity           | str      | \ |
 
 The value be returned order by start time.
 
