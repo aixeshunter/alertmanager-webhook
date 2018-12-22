@@ -1,15 +1,12 @@
 ## Alertmanager Webhook
 
-
-### Function
-> To store `resolved` status alerts in linux sqlite3 database by python flask framework.
-
+To store `resolved` status alerts in linux sqlite3 database by python flask framework.
 
 ### API
 
 #### alerts ['POST']
 
-> The interface used by Alertmanager webhook.
+The interface used by Alertmanager webhook.
 
 ##### Configuration
 ```bash
@@ -33,7 +30,7 @@ receivers
 
 #### alerts_history ['GET']
 
-##### parameters
+##### Parameters
 | Name          | type     | default |
 | ------------  | -------- | ------------|
 | page          | int      | 1 |
@@ -42,13 +39,16 @@ receivers
 | end           | str      | \ |
 
 
-> The value return order by start time.
+The value be returned order by start time.
 
-> example
+* Demo
+
+Request
 ```bash
 curl -g -i -X GET -H "Accept: application/json"  "http://alertmanager-webhook:5000/alerts_history?page=1&per_page=20&start=1542963638&end=1542965018"
 ```
 
+Response
 ```json
 {
   "alerts": [
