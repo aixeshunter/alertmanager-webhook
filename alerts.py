@@ -94,17 +94,24 @@ def query_alerts(page, per_page, start, end, severity):
 
 @app.route("/alerts_history", methods=['GET'])
 def alerts_history():
+    """GET Method
+    Return alerts for a period of time, and the results order by start time.
+    """
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     start = request.args.get('start', type=str)
     end = request.args.get('end', type=str)
-    alerts, pagination = query_alerts(page, per_page, start, end)
+    severity = request.args.get('severity', type=str)
+    alerts, pagination = query_alerts(page, per_page, start, end, severity)
 
     return jsonify({"alerts": alerts, "pagination": pagination}), 200
 
 
-@app.route('/alerts',methods=['POST'])
+@app.route('/alerts', methods=['POST'])
 def send():
+    """POST Method
+    To store resolved alerts in sqlit3 DB.
+    """
     try:
         if request.method == 'POST':
             post_data = request.get_json()
@@ -124,6 +131,7 @@ def alert_data(data):
                 if i.get("status") != RESOLVED:
                     continue
 
+                # Hash every alerts as uuid to achieve alerts uniqueness.
                 hash_str = hash_value(i["labels"], i["startsAt"])
                 if hash_str and not query_hash_id(hash_str):
                     instance = i["labels"]["instance"].split(':')[0]
@@ -157,6 +165,7 @@ def insert_data(alerts):
 
 
 def hash_value(labels, starts):
+    """Hash every alerts to achieve alerts uniqueness."""
     hash_str = labels.get("alertname", '') + labels.get("instance", "") + starts
 
     return hash(hash_str)
