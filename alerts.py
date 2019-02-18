@@ -25,7 +25,7 @@ class Alerts(db.Model):
     resource = db.Column(db.String(64), unique=False, nullable=False)
     message = db.Column(db.Text, unique=False, nullable=False)
     hash_id = db.Column(db.String(64), unique=True, nullable=False)
-    severity = db.Column(db.String(64),nullable=False)
+    severity = db.Column(db.String(64), nullable=False)
     start = db.Column(db.DateTime, nullable=False)
     end = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
