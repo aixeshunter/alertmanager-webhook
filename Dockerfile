@@ -1,5 +1,5 @@
 FROM    centos
-LABEL   maintainer="aixeshunter@hikvision.com.cn"
+LABEL   maintainer="aixeshunter@gmail.com"
 
 
 # ENV http_proxy "http://127.0.0.1:6555"
